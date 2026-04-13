@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 # MariaDB Log Explorer — não versionar
 local/
 publish/
+
+# Rastreios / diagnóstico local
+hosttrace*.txt
