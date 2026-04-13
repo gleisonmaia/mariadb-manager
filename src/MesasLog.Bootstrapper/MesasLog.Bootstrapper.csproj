@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>MesasLog.Bootstrapper</RootNamespace>
+    <!-- Nome amigável na pasta de instalação -->
+    <AssemblyName>MariaDBLogExplorer.Launcher</AssemblyName>
+    <Product>Maria DB - Log Explorer</Product>
+    <AssemblyTitle>Maria DB - Log Explorer</AssemblyTitle>
+    <ApplicationIcon>..\MesasLog.Wpf\AppIcon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!--
+    Fluxo de distribuição padrão: na raiz do repo, .\publish-release.ps1
+    (launcher self-contained + WPF framework-dependent na mesma pasta).
+    Atalho para o usuário: MariaDBLogExplorer.Launcher.exe
+  -->
+
+</Project>

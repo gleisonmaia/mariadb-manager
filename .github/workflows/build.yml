@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore and build solution
+        run: dotnet build MesasLog.sln -c Release --verbosity minimal
+
+      - name: Publish distribution (launcher + WPF)
+        shell: pwsh
+        run: ./publish-release.ps1 -Output publish -NoShortcut
+
+      - name: Upload publish folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: MesasLog-win-x64-publish
+          path: publish/
