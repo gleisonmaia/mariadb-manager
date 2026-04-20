@@ -177,7 +177,11 @@ public sealed class BinlogIngestionService
         if (!dryRun && opt.Processing.LogRetentionDays > 0)
         {
             var cutoff = DateTime.UtcNow.AddDays(-opt.Processing.LogRetentionDays);
-            await _eventRepository.DeleteOlderThanAsync(cutoff, ct);
+            Report($"Retenção: removendo eventos com data_evento anterior a {cutoff:yyyy-MM-dd HH:mm} UTC (mais de {opt.Processing.LogRetentionDays} dia(s))...");
+            var removidos = await _eventRepository.DeleteOlderThanAsync(cutoff, ct);
+            Report(removidos > 0
+                ? $"Retenção: {removidos} evento(s) removido(s) do banco de log."
+                : "Retenção: nenhum evento antigo para remover.");
         }
 
         Report($"Concluído. Eventos processados: {processed}.");

@@ -454,9 +454,10 @@
                                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Servidor" Style="{StaticResource FilterLabel}" />
                                                 <TextBlock Grid.Row="0" Grid.Column="4" Text="Porta" Style="{StaticResource FilterLabel}" />
                                                 <ComboBox Grid.Row="1" Grid.Column="0"
-                                                          ItemsSource="{Binding TiposBancoBackup}"
+                                                          ItemsSource="{Binding TiposBancoDestino}"
                                                           SelectedItem="{Binding TipoBancoDestino}"
-                                                          MinWidth="120" />
+                                                          MinWidth="120"
+                                                          ToolTip="Tipo fixo: MariaDB." />
                                                 <TextBox Grid.Row="1" Grid.Column="2"
                                                          Text="{Binding ServidorDestino, UpdateSourceTrigger=PropertyChanged}" />
                                                 <TextBox Grid.Row="1" Grid.Column="4"

@@ -34,7 +34,8 @@ public sealed class BinlogSettings
 public sealed class ProcessingSettings
 {
     public int BatchSize { get; set; } = 500;
-    public int LogRetentionDays { get; set; } = 90;
+    /// <summary>Ao processar o binlog, apaga de <c>binlog_event_log</c> linhas com <c>data_evento</c> mais antigas que este número de dias (UTC). 0 desativa.</summary>
+    public int LogRetentionDays { get; set; } = 30;
     /// <summary>Nome do banco cujos eventos ROW serão ingeridos (correspondência exata, ignorando maiúsculas/minúsculas).</summary>
     public string TargetDatabase { get; set; } = "mesas";
     public InsertConflictBehavior InsertConflict { get; set; } = InsertConflictBehavior.Ignore;

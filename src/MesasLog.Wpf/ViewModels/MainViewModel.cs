@@ -87,7 +87,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _passoPassoBackupOrigem = "";
     [ObservableProperty] private bool _processandoBackupOrigem;
 
-    [ObservableProperty] private string? _tipoBancoDestino;
+    [ObservableProperty] private string _tipoBancoDestino = "MariaDB";
     [ObservableProperty] private string _servidorDestino = "";
     [ObservableProperty] private string _portaDestinoTexto = "3306";
     [ObservableProperty] private string _bancoDestino = "mesas";
@@ -104,6 +104,9 @@ public partial class MainViewModel : ObservableObject
     public string[] OrdenacaoOpcoes { get; } = { "data_evento", "banco", "tabela" };
 
     public string[] TiposBancoBackup { get; } = { "MySQL", "MariaDB" };
+
+    /// <summary>Restauração no destino: apenas MariaDB.</summary>
+    public string[] TiposBancoDestino { get; } = { "MariaDB" };
 
     [RelayCommand]
     private async Task RealizarBackupOrigemAsync()
@@ -218,7 +221,7 @@ public partial class MainViewModel : ObservableObject
             AppendPassoRestauracao($"Pasta do launcher: {launcherDir}");
             await _backupRestore.RestaurarDestinoAsync(
                 launcherDir,
-                TipoBancoDestino!,
+                TipoBancoDestino,
                 host,
                 port,
                 BancoDestino.Trim(),
@@ -286,11 +289,6 @@ public partial class MainViewModel : ObservableObject
         host = ServidorDestino.Trim();
         port = 3306;
         erro = "";
-        if (string.IsNullOrWhiteSpace(TipoBancoDestino))
-        {
-            erro = "Selecione o tipo de banco (MySQL ou MariaDB) no destino.";
-            return false;
-        }
 
         if (string.IsNullOrWhiteSpace(host))
         {
