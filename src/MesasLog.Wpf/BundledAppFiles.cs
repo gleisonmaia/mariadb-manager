@@ -33,11 +33,11 @@ internal static class BundledAppFiles
         }
 
         var asm = typeof(BundledAppFiles).Assembly;
-        await using var stream = asm.GetManifestResourceStream(EmbeddedMesasSql);
+        using var stream = asm.GetManifestResourceStream(EmbeddedMesasSql);
         if (stream == null)
             return;
         using var reader = new StreamReader(stream);
-        var sql = await reader.ReadToEndAsync(ct);
+        var sql = await reader.ReadToEndAsync().ConfigureAwait(false);
         await schema.ApplyMesasSnapshotFromContentAsync(sql, ct);
     }
 }

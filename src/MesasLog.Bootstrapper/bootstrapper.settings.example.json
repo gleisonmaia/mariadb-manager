@@ -1,5 +1,4 @@
 {
-  "runtimeInstallerUrl": "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.14/windowsdesktop-runtime-8.0.14-win-x64.exe",
-  "mainExeName": "MariaDBLogExplorer.exe",
-  "runtimeMajor": 8
+  "frameworkDownloadUrl": "https://dotnet.microsoft.com/pt-br/download/dotnet-framework/net48",
+  "mainExeName": "MariaDBLogExplorer.exe"
 }

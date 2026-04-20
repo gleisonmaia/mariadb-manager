@@ -8,25 +8,46 @@ using Microsoft.Extensions.Options;
 
 namespace MesasLog.Application.Services;
 
-public sealed class BinlogIngestionService(
-    IOptions<MesasLogOptions> options,
-    MysqlBinlogPathResolver pathResolver,
-    MysqlBinlogExecutor binlogExecutor,
-    BinlogVerboseRowParser parser,
-    RowImageValidator validator,
-    BinlogEventRepository eventRepository,
-    CheckpointRepository checkpointRepository,
-    ILogger<BinlogIngestionService> logger)
+public sealed class BinlogIngestionService
 {
+    private readonly IOptions<MesasLogOptions> _options;
+    private readonly MysqlBinlogPathResolver _pathResolver;
+    private readonly MysqlBinlogExecutor _binlogExecutor;
+    private readonly BinlogVerboseRowParser _parser;
+    private readonly RowImageValidator _validator;
+    private readonly BinlogEventRepository _eventRepository;
+    private readonly CheckpointRepository _checkpointRepository;
+    private readonly ILogger<BinlogIngestionService> _logger;
+
+    public BinlogIngestionService(
+        IOptions<MesasLogOptions> options,
+        MysqlBinlogPathResolver pathResolver,
+        MysqlBinlogExecutor binlogExecutor,
+        BinlogVerboseRowParser parser,
+        RowImageValidator validator,
+        BinlogEventRepository eventRepository,
+        CheckpointRepository checkpointRepository,
+        ILogger<BinlogIngestionService> logger)
+    {
+        _options = options;
+        _pathResolver = pathResolver;
+        _binlogExecutor = binlogExecutor;
+        _parser = parser;
+        _validator = validator;
+        _eventRepository = eventRepository;
+        _checkpointRepository = checkpointRepository;
+        _logger = logger;
+    }
+
     public async Task<IngestionResult> RunAsync(bool dryRun, string? targetDatabase, IProgress<string>? progress, CancellationToken ct)
     {
-        var opt = options.Value;
+        var opt = _options.Value;
         var messages = new List<string>();
         void Report(string s)
         {
             messages.Add(s);
             progress?.Report(s);
-            logger.LogInformation("{Step}", s);
+            _logger.LogInformation("{Step}", s);
         }
 
         var dbName = string.IsNullOrWhiteSpace(targetDatabase)
@@ -36,14 +57,14 @@ public sealed class BinlogIngestionService(
             return new IngestionResult(false, "Informe o nome do banco a analisar.", messages);
 
         Report("Validando conexão com o banco de destino...");
-        if (!await eventRepository.TestConnectionAsync(ct))
+        if (!await _eventRepository.TestConnectionAsync(ct))
             return new IngestionResult(false, "Conexão com o banco falhou.", messages);
 
-        var mysqlBinlog = pathResolver.ResolveMysqlBinlogExecutable(opt.Binlog.MysqlBinlogPath);
+        var mysqlBinlog = _pathResolver.ResolveMysqlBinlogExecutable(opt.Binlog.MysqlBinlogPath);
         if (mysqlBinlog == null)
             return new IngestionResult(false, "mysqlbinlog não localizado.", messages);
 
-        var binDir = pathResolver.ResolveBinlogDirectory(opt.Binlog.BinlogDirectory);
+        var binDir = _pathResolver.ResolveBinlogDirectory(opt.Binlog.BinlogDirectory);
         if (binDir == null)
             return new IngestionResult(false, "Diretório de binlogs não configurado ou não encontrado.", messages);
 
@@ -51,7 +72,7 @@ public sealed class BinlogIngestionService(
         if (files.Count == 0)
             return new IngestionResult(false, "Nenhum arquivo de binlog encontrado no diretório.", messages);
 
-        var checkpoint = await checkpointRepository.GetAsync(ct);
+        var checkpoint = await _checkpointRepository.GetAsync(ct);
         var startIndex = 0;
         long startPosition = 4;
         var checkpointEncontrado = false;
@@ -103,10 +124,10 @@ public sealed class BinlogIngestionService(
                 file
             };
 
-            var exec = await binlogExecutor.RunAsync(mysqlBinlog, args, timeout, ct);
+            var exec = await _binlogExecutor.RunAsync(mysqlBinlog, args, timeout, ct);
             if (!exec.Success)
             {
-                logger.LogError("mysqlbinlog stderr: {Err}", exec.StandardError);
+                _logger.LogError("mysqlbinlog stderr: {Err}", exec.StandardError);
                 return new IngestionResult(false, "Falha ao executar mysqlbinlog: " + exec.StandardError, messages);
             }
 
@@ -116,12 +137,12 @@ public sealed class BinlogIngestionService(
             {
                 ct.ThrowIfCancellationRequested();
                 var maxAtNoSegmento = BinlogVerboseRowParser.GetMaxAtPosition(segment);
-                var events = parser.ParseLines(segment, fileName, IncludeDb).ToList();
+                var events = _parser.ParseLines(segment, fileName, IncludeDb).ToList();
 
                 var validBatch = new List<BinlogParsedRowEvent>();
                 foreach (var ev in events)
                 {
-                    if (!validator.Validate(ev, out var msg))
+                    if (!_validator.Validate(ev, out var msg))
                     {
                         if (opt.Processing.OnInconsistency == InconsistencyMode.Abort)
                             return new IngestionResult(false, "Validação: " + msg, messages);
@@ -141,14 +162,13 @@ public sealed class BinlogIngestionService(
                     for (var o = 0; o < validBatch.Count; o += batchSize)
                     {
                         var chunk = validBatch.Skip(o).Take(batchSize).ToList();
-                        await eventRepository.InsertBatchAsync(chunk, ct);
+                        await _eventRepository.InsertBatchAsync(chunk, ct);
                         Report($"Persistidos {chunk.Count} evento(s) (mesma transação de binlog em lotes de até {batchSize}).");
                     }
                 }
 
-                // Avança checkpoint pelo binlog lido mesmo sem linhas do banco alvo (evita releitura completa).
                 if (!dryRun && maxAtNoSegmento > 0)
-                    await checkpointRepository.SaveAsync(fileName, maxAtNoSegmento, ct);
+                    await _checkpointRepository.SaveAsync(fileName, maxAtNoSegmento, ct);
 
                 processed += validBatch.Count;
             }
@@ -157,7 +177,7 @@ public sealed class BinlogIngestionService(
         if (!dryRun && opt.Processing.LogRetentionDays > 0)
         {
             var cutoff = DateTime.UtcNow.AddDays(-opt.Processing.LogRetentionDays);
-            await eventRepository.DeleteOlderThanAsync(cutoff, ct);
+            await _eventRepository.DeleteOlderThanAsync(cutoff, ct);
         }
 
         Report($"Concluído. Eventos processados: {processed}.");
@@ -165,4 +185,16 @@ public sealed class BinlogIngestionService(
     }
 }
 
-public sealed record IngestionResult(bool Success, string? ErrorMessage, IReadOnlyList<string> Steps);
+public sealed class IngestionResult
+{
+    public IngestionResult(bool success, string? errorMessage, IReadOnlyList<string> steps)
+    {
+        Success = success;
+        ErrorMessage = errorMessage;
+        Steps = steps;
+    }
+
+    public bool Success { get; }
+    public string? ErrorMessage { get; }
+    public IReadOnlyList<string> Steps { get; }
+}

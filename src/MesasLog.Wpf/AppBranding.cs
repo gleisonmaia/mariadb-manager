@@ -20,9 +20,9 @@ internal static class AppBranding
         if (!string.IsNullOrWhiteSpace(info))
         {
             var plus = info.IndexOf('+');
-            return plus >= 0 ? info[..plus] : info;
+            return plus >= 0 ? info.Substring(0, plus) : info;
         }
 
-        return asm.GetName().Version?.ToString(3) ?? "1.1.0";
+        return asm.GetName().Version?.ToString(3) ?? "2.0.0";
     }
 }

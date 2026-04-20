@@ -1,10 +1,10 @@
-# Publica: MariaDBLogExplorer.Launcher.exe (self-contained, na raiz) + app\MariaDBLogExplorer.exe (WPF, single-file FDD: DLLs da app no .exe, runtime .NET não embutido).
-# O launcher verifica o Windows Desktop Runtime 8, baixa/instala se necessário e inicia o WPF.
-# appsettings.json e mesas.sql estão embutidos no WPF; pode haver appsettings.json opcional em app\.
+# Publica: MariaDBLogExplorer.Launcher.exe + app\MariaDBLogExplorer.exe (.NET Framework 4.8).
+# O WPF é empacotado com Costura.Fody: dependências geridas fundidas num único .exe (sem DLLs satélite).
+# O launcher verifica o .NET Framework 4.8 no registro; se não houver, oferece abrir a página de download.
+# appsettings.json e mesas.sql estão embutidos no assembly; pode haver appsettings.json opcional em app\.
 
 param(
     [string]$Output = "publish",
-    [string]$Rid = "win-x64",
     [switch]$NoShortcut
 )
 
@@ -23,26 +23,34 @@ if (Test-Path -LiteralPath $outPath) {
 }
 New-Item -ItemType Directory -Force -Path $appPath | Out-Null
 
-Write-Host "Publicando launcher (self-contained, arquivo único comprimido)..."
+Write-Host "Publicando launcher (console, .NET Framework 4.8)..."
 dotnet publish (Join-Path $root "src\MesasLog.Bootstrapper\MesasLog.Bootstrapper.csproj") `
-    -c Release -r $Rid --self-contained true `
-    -p:PublishSingleFile=true `
-    -p:EnableCompressionInSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
+    -c Release `
     -p:DebugType=none `
     -o $outPath
 
-Write-Host "Publicando WPF (single-file framework-dependent: DLLs no .exe, sem runtime embutido)..."
-# NETSDK1176: EnableCompressionInSingleFile só com self-contained; FDD usa single-file sem compressão.
+Write-Host "Publicando WPF (.NET Framework 4.8)..."
 dotnet publish (Join-Path $root "src\MesasLog.Wpf\MesasLog.Wpf.csproj") `
-    -c Release -r $Rid `
-    --self-contained false `
-    -p:SelfContained=false `
-    -p:PublishSingleFile=true `
+    -c Release `
     -p:DebugType=none `
     -o $appPath
 
+# Config do launcher: na raiz fica só o .exe; o .config vai para app\ (o programa define APP_CONFIG_FILE em runtime).
+$launcherConfigSrc = Join-Path $outPath "MariaDBLogExplorer.Launcher.exe.config"
+$launcherConfigDest = Join-Path $appPath "MariaDBLogExplorer.Launcher.exe.config"
+if (Test-Path -LiteralPath $launcherConfigSrc) {
+    Move-Item -LiteralPath $launcherConfigSrc -Destination $launcherConfigDest -Force
+}
+
+# Raiz: apenas MariaDBLogExplorer.Launcher.exe
+Get-ChildItem -LiteralPath $outPath -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne "MariaDBLogExplorer.Launcher.exe" } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+
 Get-ChildItem -LiteralPath $outPath -Filter *.pdb -File -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
+
+# Costura funde DLLs geridas; remover qualquer .dll residual (não deve existir em Release).
+Get-ChildItem -LiteralPath $outPath -Filter *.dll -File -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
 
 foreach ($extra in @('appsettings.json', 'mesas.sql')) {
     $p = Join-Path $appPath $extra
@@ -82,12 +90,12 @@ if (-not $NoShortcut -and $env:OS -match 'Windows') {
 $launcherExe = Join-Path $outPath "MariaDBLogExplorer.Launcher.exe"
 $wpfExe = Join-Path $appPath "MariaDBLogExplorer.exe"
 if (Test-Path -LiteralPath $launcherExe) {
-    $lnMb = [math]::Round((Get-Item $launcherExe).Length / 1MB, 2)
-    Write-Host "Launcher: ~ $lnMb MB (inclui runtime .NET para o próprio console)"
+    $lnKb = [math]::Round((Get-Item $launcherExe).Length / 1KB, 1)
+    Write-Host "Launcher: ~ $lnKb KB"
 }
 if (Test-Path -LiteralPath $wpfExe) {
     $wpfMb = [math]::Round((Get-Item $wpfExe).Length / 1MB, 2)
-    Write-Host "WPF: ~ $wpfMb MB (single-file; usa Desktop Runtime instalado no Windows)"
+    Write-Host "WPF: ~ $wpfMb MB (single-file Costura: DLLs geridas embutidas no .exe)"
 }
 
 Write-Host ""

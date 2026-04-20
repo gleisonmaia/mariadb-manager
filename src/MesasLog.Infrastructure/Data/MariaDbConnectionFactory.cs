@@ -5,11 +5,16 @@ using MySqlConnector;
 
 namespace MesasLog.Infrastructure.Data;
 
-public sealed class MariaDbConnectionFactory(
-    IOptions<MesasLogOptions> options,
-    ILogger<MariaDbConnectionFactory> logger)
+public sealed class MariaDbConnectionFactory
 {
-    private readonly MesasLogOptions _opt = options.Value;
+    private readonly MesasLogOptions _opt;
+    private readonly ILogger<MariaDbConnectionFactory> _logger;
+
+    public MariaDbConnectionFactory(IOptions<MesasLogOptions> options, ILogger<MariaDbConnectionFactory> logger)
+    {
+        _opt = options.Value;
+        _logger = logger;
+    }
 
     /// <summary>Nome do banco configurado em appsettings (ex.: mesas_log).</summary>
     public string DatabaseName => _opt.Database.Database;
@@ -60,7 +65,7 @@ public sealed class MariaDbConnectionFactory(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex,
+            _logger.LogWarning(ex,
                 "Não foi possível executar SET SESSION sql_log_bin = 0. Os escritos da app podem gerar eventos no binlog do servidor. " +
                 "Garanta privilégio adequado (ex.: SUPER ou BINLOG ADMIN) ou ignore se o destino não for o mesmo servidor dos ficheiros lidos.");
         }

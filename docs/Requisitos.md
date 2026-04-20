@@ -42,7 +42,7 @@ Este documento resume o escopo definido para o leitor de binary log do MariaDB, 
 ## 6. Arquitetura e implantação
 
 - Camadas: **Core** (modelos/opções), **Infrastructure** (dados, binlog, logging em arquivo), **Application** (orquestração, validação, replay), **UI** (WPF).
-- Executável publicável como **self-contained** e **single-file** para Windows (`win-x64`), sem depender do runtime .NET instalado no alvo (via `dotnet publish` com os parâmetros documentados em `Instrucoes.md`).
+- Destino de compilação: **.NET Framework 4.8** (Windows). Distribuição: pasta com **launcher** na raiz (verifica instalação do .NET Framework 4.8) e aplicação WPF em **`app\`** (executáveis com dependências geridas fundidas via Costura.Fody; ver [Instrucoes.md](Instrucoes.md) e `publish-release.ps1` na raiz do repositório). O runtime .NET Framework 4.8 é um pré-requisito comum em Windows 10/11 ou instalável separadamente em versões anteriores.
 
 ## 7. Operação
 

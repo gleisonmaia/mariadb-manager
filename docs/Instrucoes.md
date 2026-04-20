@@ -2,8 +2,8 @@
 
 ## 1. IDE e compilação
 
-- **IDE recomendada:** Visual Studio 2022 (workload **Desenvolvimento para desktop com .NET**) ou **JetBrains Rider**, ou ainda **Visual Studio Code** com extensão C#.
-- **SDK:** .NET 8 ou superior (o repositório usa `net8.0-windows` para o WPF).
+- **IDE recomendada:** Visual Studio 2022 (workload **Desenvolvimento para desktop com .NET** e **.NET Framework 4.8**), **JetBrains Rider**, ou **Visual Studio Code** com extensão C#.
+- **SDK:** .NET 9 ou superior (para `dotnet build` / `dotnet publish` dos projetos SDK-style que visam **`net48`**). No Windows, o **Pacote de desenvolvimento do .NET Framework 4.8** (referências de compilação) costuma ser necessário para compilar projetos `net48`.
 
 ### Compilar em modo debug
 
@@ -15,16 +15,14 @@ dotnet build MesasLog.sln -c Debug
 
 O executável de desenvolvimento fica em:
 
-`src\MesasLog.Wpf\bin\Debug\net8.0-windows\MariaDBLogExplorer.exe`
+`src\MesasLog.Wpf\bin\Debug\net48\MariaDBLogExplorer.exe`
 
-Em desenvolvimento, `appsettings.json` e `mesas.sql` são copiados para a pasta de saída. Os mesmos ficheiros estão **embutidos** no assembly para o executável único de distribuição.
+Em desenvolvimento, `appsettings.json` e `mesas.sql` são copiados para a pasta de saída. Os mesmos ficheiros estão **embutidos** no assembly para distribuição (cópia opcional removida na pasta `app\` pelo script de publicação).
 
-### Publicar para distribuição (recomendado): launcher + WPF single-file sem runtime embutido
+### Publicar para distribuição (recomendado): launcher na raiz + conteúdo em `app\`
 
-- **`MariaDBLogExplorer.Launcher.exe`** (na **raiz** da pasta publicada): console **self-contained** em arquivo único (~tamanho de dezenas de MB). Verifica se existe o **Windows Desktop Runtime .NET 8**; se não houver, oferece **baixar e instalar** o instalador oficial da Microsoft e só então inicia o WPF.
-- **`app\MariaDBLogExplorer.exe`**: **single-file** em modo **framework-dependent** (interface WPF) — as **DLLs da aplicação e dependências NuGet** vão empacotadas no `.exe` (~ordem de **4–6 MB**), mas o **runtime .NET (WPF)** **não** é embutido; usa o instalado no Windows (o launcher garante isso).
-
-**Limitação do SDK:** compressão do single-file (`EnableCompressionInSingleFile`) **só** é permitida com **self-contained**; por isso o WPF FDD publica single-file **sem** essa compressão.
+- **`MariaDBLogExplorer.Launcher.exe`** (só este ficheiro na **raiz** da pasta publicada): console (empacotado com **Costura.Fody**) que verifica se o **.NET Framework 4.8** está instalado (registro Windows, `Release >= 528040`). O ficheiro **`MariaDBLogExplorer.Launcher.exe.config`** é colocado em **`app\`**; o launcher aponta para ele no arranque.
+- **`app\MariaDBLogExplorer.exe`**: interface WPF (.NET Framework 4.8), empacotada com **Costura.Fody** (dependências geridas fundidas no `.exe`). Na pasta **`app\`** ficam os `.exe.config` (launcher e WPF), o executável WPF e ficheiros opcionais (`bootstrapper.settings.json`, etc.).
 
 Na raiz do repositório:
 
@@ -34,23 +32,23 @@ Na raiz do repositório:
 
 O script **limpa** a pasta de saída, publica o launcher na raiz, o WPF em **`app\`**, copia `bootstrapper.settings.json` (exemplo), remove cópias soltas de `appsettings.json` / `mesas.sql` em `app\` (o padrão continua **embutido** no assembly). **Distribua a pasta inteira** (raiz + **`app\`**). O utilizador deve abrir **`MariaDBLogExplorer.Launcher.exe`** na raiz. Opcional: **`app\appsettings.json`** para personalizar. Atalhos em **`app\`**: `Iniciar Maria DB Log Explorer.bat`, `Maria DB Log Explorer.lnk` (Windows; use `-NoShortcut` em CI).
 
-**Visual Studio / MSBuild:** `dotnet msbuild MesasLog.Publish.proj -t:PublishRelease`. Parâmetros: `/p:PublishDir=...`, `/p:MesasLogRid=win-x64`.
+**Visual Studio / MSBuild:** `dotnet msbuild MesasLog.Publish.proj -t:PublishRelease`. Parâmetros: `/p:PublishDir=...`.
 
 **CI (GitHub Actions):** `publish-release.ps1 -NoShortcut`; o artefato é a pasta `publish` completa.
 
 ```powershell
-.\publish-release.ps1 -Output C:\dist -Rid win-x64
+.\publish-release.ps1 -Output C:\dist
 .\publish-release.ps1 -NoShortcut
 ```
 
 **Publicação manual equivalente:**
 
 ```powershell
-dotnet publish src\MesasLog.Bootstrapper\MesasLog.Bootstrapper.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o publish
-dotnet publish src\MesasLog.Wpf\MesasLog.Wpf.csproj -c Release -r win-x64 --self-contained false -p:SelfContained=false -p:PublishSingleFile=true -p:DebugType=none -o publish\app
+dotnet publish src\MesasLog.Bootstrapper\MesasLog.Bootstrapper.csproj -c Release -p:DebugType=none -o publish
+dotnet publish src\MesasLog.Wpf\MesasLog.Wpf.csproj -c Release -p:DebugType=none -o publish\app
 ```
 
-O projeto **`MesasLog.StartupHook`** não é usado neste fluxo (era para DLLs em subpasta com host FDD antigo).
+O projeto **`MesasLog.StartupHook`** foi removido (era específico do host .NET Core e não era usado no fluxo de distribuição).
 
 ## 2. Configuração (`appsettings.json`)
 
@@ -66,7 +64,7 @@ Valores embutidos no `MariaDBLogExplorer.exe` (WPF em `app\`); um **`appsettings
 
 ## 3. Uso do executável
 
-Na distribuição publicada, abra **`MariaDBLogExplorer.Launcher.exe`** na raiz da pasta (não use só `app\MariaDBLogExplorer.exe` diretamente a menos que o Desktop Runtime .NET 8 já esteja instalado — o launcher na raiz é o fluxo recomendado).
+Na distribuição publicada, abra **`MariaDBLogExplorer.Launcher.exe`** na raiz da pasta (fluxo recomendado: verifica .NET Framework 4.8 antes do WPF).
 
 1. Garanta que o **MariaDB/MySQL Client** esteja instalado e que `mysqlbinlog.exe` seja encontrado (ou informe o caminho completo em `MysqlBinlogPath`).
 2. Configure o **diretório dos arquivos de binlog** (`BinlogDirectory`) se a detecção automática falhar.
@@ -88,3 +86,4 @@ Foi adicionado `nuget.config` na raiz do repositório para usar apenas **nuget.o
 - **Nenhum binlog listado:** verifique `BinlogDirectory` e o padrão de nomes dos arquivos (`*-bin.NNNNNN` ou semelhante); ajuste o scanner se sua instalação usar outro padrão.
 - **Conexão com o banco:** teste host/porta/firewall e usuário com permissão em `mesas_log`.
 - **Segunda instância:** o app usa mutex global; apenas uma instância por usuário/sessão conforme implementado.
+- **.NET Framework 4.8 em falta:** o launcher indica a página de download; em servidores sem browser, instale o pacote offline da Microsoft para o .NET Framework 4.8.

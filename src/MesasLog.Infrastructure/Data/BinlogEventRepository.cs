@@ -7,15 +7,23 @@ using MySqlConnector;
 
 namespace MesasLog.Infrastructure.Data;
 
-public sealed class BinlogEventRepository(MariaDbConnectionFactory factory, ILogger<BinlogEventRepository> logger)
+public sealed class BinlogEventRepository
 {
+    private readonly MariaDbConnectionFactory _factory;
+    private readonly ILogger<BinlogEventRepository> _logger;
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
+
+    public BinlogEventRepository(MariaDbConnectionFactory factory, ILogger<BinlogEventRepository> logger)
+    {
+        _factory = factory;
+        _logger = logger;
+    }
 
     public async Task<bool> TestConnectionAsync(CancellationToken ct = default)
     {
         try
         {
-            await using var conn = await factory.OpenConnectionAsync(ct);
+            await using var conn = await _factory.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT 1";
             await cmd.ExecuteScalarAsync(ct);
@@ -23,26 +31,26 @@ public sealed class BinlogEventRepository(MariaDbConnectionFactory factory, ILog
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Falha ao conectar ao banco de destino.");
+            _logger.LogError(ex, "Falha ao conectar ao banco de destino.");
             return false;
         }
     }
 
     public async Task<int> DeleteOlderThanAsync(DateTime cutoffUtc, CancellationToken ct = default)
     {
-        await using var conn = await factory.OpenConnectionAsync(ct);
+        await using var conn = await _factory.OpenConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "DELETE FROM binlog_event_log WHERE data_evento < @c";
         cmd.Parameters.AddWithValue("@c", cutoffUtc);
         var n = await cmd.ExecuteNonQueryAsync(ct);
-        if (n > 0) logger.LogInformation("Removidos {N} registros de log anteriores a {Cutoff}", n, cutoffUtc);
+        if (n > 0) _logger.LogInformation("Removidos {N} registros de log anteriores a {Cutoff}", n, cutoffUtc);
         return n;
     }
 
     public async Task InsertBatchAsync(IReadOnlyList<BinlogParsedRowEvent> events, CancellationToken ct = default)
     {
         if (events.Count == 0) return;
-        await using var conn = await factory.OpenConnectionAsync(ct);
+        await using var conn = await _factory.OpenConnectionAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
         try
         {
@@ -92,7 +100,7 @@ public sealed class BinlogEventRepository(MariaDbConnectionFactory factory, ILog
         var dir = q.OrderDescending ? "DESC" : "ASC";
         var offset = Math.Max(0, (q.Page - 1) * q.PageSize);
 
-        await using var conn = await factory.OpenConnectionAsync(ct);
+        await using var conn = await _factory.OpenConnectionAsync(ct);
 
         int total;
         await using (var countCmd = conn.CreateCommand())
@@ -125,7 +133,7 @@ public sealed class BinlogEventRepository(MariaDbConnectionFactory factory, ILog
                     DataEvento = r.GetDateTime(1),
                     Banco = r.GetString(2),
                     Tabela = r.GetString(3),
-                    TipoOperacao = Enum.Parse<TipoOperacao>(r.GetString(4), true),
+                    TipoOperacao = (TipoOperacao)Enum.Parse(typeof(TipoOperacao), r.GetString(4), true),
                     DadosAntesJson = r.IsDBNull(5) ? null : r.GetString(5),
                     DadosDepoisJson = r.IsDBNull(6) ? null : r.GetString(6),
                     QuerySql = r.IsDBNull(7) ? null : r.GetString(7),
@@ -147,7 +155,7 @@ public sealed class BinlogEventRepository(MariaDbConnectionFactory factory, ILog
     public async Task<IReadOnlyList<BinlogEventLogRow>> GetAllEventsOrderedAsync(CancellationToken ct = default)
     {
         var items = new List<BinlogEventLogRow>();
-        await using var conn = await factory.OpenConnectionAsync(ct);
+        await using var conn = await _factory.OpenConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             SELECT id, data_evento, banco, tabela, tipo_operacao, dados_antes, dados_depois, query_sql, binlog_file, binlog_position
@@ -163,7 +171,7 @@ public sealed class BinlogEventRepository(MariaDbConnectionFactory factory, ILog
                 DataEvento = r.GetDateTime(1),
                 Banco = r.GetString(2),
                 Tabela = r.GetString(3),
-                TipoOperacao = Enum.Parse<TipoOperacao>(r.GetString(4), true),
+                TipoOperacao = (TipoOperacao)Enum.Parse(typeof(TipoOperacao), r.GetString(4), true),
                 DadosAntesJson = r.IsDBNull(5) ? null : r.GetString(5),
                 DadosDepoisJson = r.IsDBNull(6) ? null : r.GetString(6),
                 QuerySql = r.IsDBNull(7) ? null : r.GetString(7),

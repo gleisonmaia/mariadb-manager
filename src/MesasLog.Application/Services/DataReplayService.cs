@@ -10,16 +10,37 @@ namespace MesasLog.Application.Services;
 /// <summary>
 /// Reconstrói tabelas com prefixo log_ aplicando eventos armazenados (idempotente: trunca e reaplica).
 /// </summary>
-public sealed partial class DataReplayService(
-    MariaDbConnectionFactory factory,
-    BinlogEventRepository eventRepository,
-    IOptions<MesasLogOptions> options,
-    ILogger<DataReplayService> logger)
+public sealed class DataReplayService
 {
+    private static readonly Regex InsertRegex = new Regex(
+        "^INSERT\\s+",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static readonly Regex BacktickPairRegex = new Regex(
+        @"`([^`]+)`\.`([^`]+)`",
+        RegexOptions.CultureInvariant);
+
+    private readonly MariaDbConnectionFactory _factory;
+    private readonly BinlogEventRepository _eventRepository;
+    private readonly IOptions<MesasLogOptions> _options;
+    private readonly ILogger<DataReplayService> _logger;
+
+    public DataReplayService(
+        MariaDbConnectionFactory factory,
+        BinlogEventRepository eventRepository,
+        IOptions<MesasLogOptions> options,
+        ILogger<DataReplayService> logger)
+    {
+        _factory = factory;
+        _eventRepository = eventRepository;
+        _options = options;
+        _logger = logger;
+    }
+
     public async Task<ReplayResult> ReplayFromLogAsync(bool dryRun, CancellationToken ct)
     {
         var steps = new List<string>();
-        await using var conn = await factory.OpenConnectionAsync(ct);
+        await using var conn = await _factory.OpenConnectionAsync(ct);
 
         var logTables = await ListLogTablesAsync(conn, ct);
         if (logTables.Count == 0)
@@ -40,10 +61,10 @@ public sealed partial class DataReplayService(
             steps.Add("[dry-run] Não truncar tabelas.");
         }
 
-        var events = await eventRepository.GetAllEventsOrderedAsync(ct);
+        var events = await _eventRepository.GetAllEventsOrderedAsync(ct);
         steps.Add($"Total de eventos no log: {events.Count}");
 
-        var insertMode = options.Value.Processing.InsertConflict;
+        var insertMode = _options.Value.Processing.InsertConflict;
         var applied = 0;
         foreach (var row in events)
         {
@@ -69,7 +90,8 @@ public sealed partial class DataReplayService(
             }
             catch (MySqlException ex)
             {
-                logger.LogWarning(ex, "SQL replay ignorado: {Sql}", rewritten[..Math.Min(120, rewritten.Length)]);
+                _logger.LogWarning(ex, "SQL replay ignorado: {Sql}",
+                    rewritten.Substring(0, Math.Min(120, rewritten.Length)));
             }
         }
 
@@ -90,7 +112,7 @@ public sealed partial class DataReplayService(
 
     private static string? RewriteSqlForLogDatabase(string sql, InsertConflictBehavior insertMode)
     {
-        var s = BacktickPairRegex().Replace(sql.Trim(), m =>
+        var s = BacktickPairRegex.Replace(sql.Trim(), m =>
         {
             var db = m.Groups[1].Value;
             var tbl = m.Groups[2].Value;
@@ -104,17 +126,23 @@ public sealed partial class DataReplayService(
 
         return insertMode switch
         {
-            InsertConflictBehavior.Ignore => InsertRegex().Replace(s, "INSERT IGNORE ", 1),
-            InsertConflictBehavior.Overwrite => InsertRegex().Replace(s, "REPLACE ", 1),
+            InsertConflictBehavior.Ignore => InsertRegex.Replace(s, "INSERT IGNORE ", 1),
+            InsertConflictBehavior.Overwrite => InsertRegex.Replace(s, "REPLACE ", 1),
             _ => s
         };
     }
-
-    [GeneratedRegex("^INSERT\\s+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex InsertRegex();
-
-    [GeneratedRegex(@"`([^`]+)`\.`([^`]+)`", RegexOptions.CultureInvariant)]
-    private static partial Regex BacktickPairRegex();
 }
 
-public sealed record ReplayResult(bool Success, string? ErrorMessage, IReadOnlyList<string> Steps);
+public sealed class ReplayResult
+{
+    public ReplayResult(bool success, string? errorMessage, IReadOnlyList<string> steps)
+    {
+        Success = success;
+        ErrorMessage = errorMessage;
+        Steps = steps;
+    }
+
+    public bool Success { get; }
+    public string? ErrorMessage { get; }
+    public IReadOnlyList<string> Steps { get; }
+}

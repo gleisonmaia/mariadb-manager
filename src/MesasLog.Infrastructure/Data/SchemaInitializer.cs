@@ -4,11 +4,18 @@ using MySqlConnector;
 
 namespace MesasLog.Infrastructure.Data;
 
-public sealed class SchemaInitializer(
-    MariaDbConnectionFactory factory,
-    ILogger<SchemaInitializer> logger)
+public sealed class SchemaInitializer
 {
-    private static readonly Regex CreateTableNameRegex = new(
+    private readonly MariaDbConnectionFactory _factory;
+    private readonly ILogger<SchemaInitializer> _logger;
+
+    public SchemaInitializer(MariaDbConnectionFactory factory, ILogger<SchemaInitializer> logger)
+    {
+        _factory = factory;
+        _logger = logger;
+    }
+
+    private static readonly Regex CreateTableNameRegex = new Regex(
         @"CREATE\s+TABLE\s+(?<q>`?)(?<name>\w+)\k<q>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(2));
@@ -19,27 +26,27 @@ public sealed class SchemaInitializer(
     /// </summary>
     public async Task EnsureDatabaseExistsAsync(CancellationToken ct = default)
     {
-        var name = factory.DatabaseName.Trim();
+        var name = _factory.DatabaseName.Trim();
         if (string.IsNullOrEmpty(name))
             throw new InvalidOperationException("MesasLog:Database:Database não pode ser vazio.");
 
         if (HasDangerousIdentifierChars(name))
             throw new InvalidOperationException($"Nome de banco contém caracteres não permitidos: '{name}'.");
 
-        var escaped = name.Replace("`", "``", StringComparison.Ordinal);
-        await using var conn = factory.CreateServerConnection();
+        var escaped = name.Replace("`", "``");
+        await using var conn = _factory.CreateServerConnection();
         await conn.OpenAsync(ct);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = $"""
             CREATE DATABASE IF NOT EXISTS `{escaped}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
             """;
         await cmd.ExecuteNonQueryAsync(ct);
-        logger.LogInformation("Banco '{Database}' verificado ou criado.", name);
+        _logger.LogInformation("Banco '{Database}' verificado ou criado.", name);
     }
 
     public async Task EnsureCoreSchemaAsync(CancellationToken ct = default)
     {
-        await using var conn = await factory.OpenConnectionAsync(ct);
+        await using var conn = await _factory.OpenConnectionAsync(ct);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             CREATE TABLE IF NOT EXISTS binlog_checkpoint (
@@ -67,18 +74,18 @@ public sealed class SchemaInitializer(
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """;
         await cmd.ExecuteNonQueryAsync(ct);
-        logger.LogInformation("Esquema principal (checkpoint + binlog_event_log) verificado.");
+        _logger.LogInformation("Esquema principal (checkpoint + binlog_event_log) verificado.");
     }
 
     public async Task ApplyMesasSnapshotAsync(string mesasSqlPath, CancellationToken ct = default)
     {
         if (!File.Exists(mesasSqlPath))
         {
-            logger.LogWarning("Arquivo mesas.sql não encontrado em {Path}", mesasSqlPath);
+            _logger.LogWarning("Arquivo mesas.sql não encontrado em {Path}", mesasSqlPath);
             return;
         }
 
-        var sql = await File.ReadAllTextAsync(mesasSqlPath, ct);
+        var sql = File.ReadAllText(mesasSqlPath);
         await ApplyMesasSnapshotFromContentAsync(sql, ct);
     }
 
@@ -87,7 +94,7 @@ public sealed class SchemaInitializer(
         if (string.IsNullOrWhiteSpace(sqlContent))
             return;
 
-        await using var conn = await factory.OpenConnectionAsync(ct);
+        await using var conn = await _factory.OpenConnectionAsync(ct);
 
         foreach (var stmt in SplitCreateTableStatements(sqlContent))
         {
@@ -98,25 +105,26 @@ public sealed class SchemaInitializer(
                 await using var cmd = conn.CreateCommand();
                 cmd.CommandText = prefixed;
                 await cmd.ExecuteNonQueryAsync(ct);
-                logger.LogInformation("Snapshot aplicado: {Snippet}", prefixed[..Math.Min(80, prefixed.Length)]);
+                _logger.LogInformation("Snapshot aplicado: {Snippet}", prefixed.Substring(0, Math.Min(80, prefixed.Length)));
             }
             catch (MySqlException ex) when (IsTableAlreadyExists(ex))
             {
-                logger.LogDebug("CREATE TABLE omitido — tabela já existe: {Snippet}",
-                    prefixed[..Math.Min(60, prefixed.Length)]);
+                _logger.LogDebug("CREATE TABLE omitido — tabela já existe: {Snippet}",
+                    prefixed.Substring(0, Math.Min(60, prefixed.Length)));
             }
             catch (MySqlException ex)
             {
-                logger.LogWarning(ex, "CREATE TABLE ignorado ou erro: {Snippet}", prefixed[..Math.Min(60, prefixed.Length)]);
+                _logger.LogWarning(ex, "CREATE TABLE ignorado ou erro: {Snippet}", prefixed.Substring(0, Math.Min(60, prefixed.Length)));
             }
         }
     }
 
     private static IEnumerable<string> SplitCreateTableStatements(string fileContent)
     {
-        var parts = fileContent.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var p in parts)
+        var parts = fileContent.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var raw in parts)
         {
+            var p = raw.Trim();
             if (p.StartsWith("CREATE TABLE", StringComparison.OrdinalIgnoreCase))
                 yield return p;
         }

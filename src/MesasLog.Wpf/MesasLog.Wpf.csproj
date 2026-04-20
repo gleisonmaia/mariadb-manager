@@ -7,34 +7,43 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
+    <PackageReference Include="Costura.Fody" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Fody" Version="6.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
   </ItemGroup>
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- TargetFramework: Directory.Build.props -->
     <UseWPF>true</UseWPF>
     <AssemblyName>MariaDBLogExplorer</AssemblyName>
     <Product>Maria DB - Log Explorer</Product>
     <AssemblyTitle>Maria DB - Log Explorer</AssemblyTitle>
     <ApplicationIcon>AppIcon.ico</ApplicationIcon>
-    <!-- Debug: FDD. Publicação single-file: publish-release.ps1 passa self-contained + PublishSingleFile. -->
     <SelfContained>false</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
+  <!-- Costura só em Release: Debug mantém DLLs ao lado para depuração mais simples. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DisableFody>true</DisableFody>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="AppIcon.ico" />
     <None Update="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory Condition="'$(Configuration)' == 'Debug'">PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="mesas.sql">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory Condition="'$(Configuration)' == 'Debug'">PreserveNewest</CopyToOutputDirectory>
     </None>
     <EmbeddedResource Include="appsettings.json" />
     <EmbeddedResource Include="mesas.sql" />

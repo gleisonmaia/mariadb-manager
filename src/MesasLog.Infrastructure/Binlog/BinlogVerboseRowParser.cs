@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using MesasLog.Core;
 
@@ -7,19 +8,23 @@ namespace MesasLog.Infrastructure.Binlog;
 /// <summary>
 /// Interpreta saída textual de mysqlbinlog --verbose --base64-output=DECODE-ROWS (eventos ROW).
 /// </summary>
-public sealed partial class BinlogVerboseRowParser
+public sealed class BinlogVerboseRowParser
 {
-    [GeneratedRegex(@"^#\s*at\s+(\d+)\s*$", RegexOptions.CultureInvariant)]
-    private static partial Regex AtPositionRegex();
+    private static readonly Regex AtPositionRegex = new Regex(
+        @"^#\s*at\s+(\d+)\s*$",
+        RegexOptions.CultureInvariant);
 
-    [GeneratedRegex(@"^#(\d{6})\s+(\d{1,2}:\d{2}:\d{2})", RegexOptions.CultureInvariant)]
-    private static partial Regex EventTimestampRegex();
+    private static readonly Regex EventTimestampRegex = new Regex(
+        @"^#(\d{6})\s+(\d{1,2}:\d{2}:\d{2})",
+        RegexOptions.CultureInvariant);
 
-    [GeneratedRegex(@"^###\s+(INSERT INTO|UPDATE|DELETE FROM)\s+`([^`]+)`\.`([^`]+)`\s*$", RegexOptions.CultureInvariant)]
-    private static partial Regex RowOperationRegex();
+    private static readonly Regex RowOperationRegex = new Regex(
+        @"^###\s+(INSERT INTO|UPDATE|DELETE FROM)\s+`([^`]+)`\.`([^`]+)`\s*$",
+        RegexOptions.CultureInvariant);
 
-    [GeneratedRegex(@"^###\s+@(\d+)=(.+)$", RegexOptions.CultureInvariant)]
-    private static partial Regex RowColumnRegex();
+    private static readonly Regex RowColumnRegex = new Regex(
+        @"^###\s+@(\d+)=(.+)$",
+        RegexOptions.CultureInvariant);
 
     /// <summary>Maior posição (# at N) presente nas linhas; 0 se não houver.</summary>
     public static long GetMaxAtPosition(IEnumerable<string> lines)
@@ -28,7 +33,7 @@ public sealed partial class BinlogVerboseRowParser
         foreach (var raw in lines)
         {
             var line = raw.TrimEnd('\r');
-            var at = AtPositionRegex().Match(line);
+            var at = AtPositionRegex.Match(line);
             if (!at.Success) continue;
             var p = long.Parse(at.Groups[1].Value, CultureInfo.InvariantCulture);
             if (p > max) max = p;
@@ -52,21 +57,21 @@ public sealed partial class BinlogVerboseRowParser
         {
             var line = raw.TrimEnd('\r');
 
-            var at = AtPositionRegex().Match(line);
+            var at = AtPositionRegex.Match(line);
             if (at.Success)
             {
                 position = long.Parse(at.Groups[1].Value, CultureInfo.InvariantCulture);
                 continue;
             }
 
-            var ts = EventTimestampRegex().Match(line);
+            var ts = EventTimestampRegex.Match(line);
             if (ts.Success && TryParseBinlogTimestamp(ts.Groups[1].Value, ts.Groups[2].Value, out var dt))
             {
                 eventTime = dt;
                 continue;
             }
 
-            var opm = RowOperationRegex().Match(line);
+            var opm = RowOperationRegex.Match(line);
             if (opm.Success)
             {
                 var flushed = TakePending(ref pending);
@@ -115,7 +120,7 @@ public sealed partial class BinlogVerboseRowParser
                 continue;
             }
 
-            var col = RowColumnRegex().Match(line);
+            var col = RowColumnRegex.Match(line);
             if (col.Success && pending != null)
             {
                 var key = "@" + col.Groups[1].Value;
@@ -246,23 +251,32 @@ public sealed partial class BinlogVerboseRowParser
         return parts.Count > 0 ? string.Join(", ", parts) : "/* sem alteração de colunas */";
     }
 
-    private static string FormatSqlLiteral(object? v) => v switch
+    private static string FormatSqlLiteral(object? v)
     {
-        null => "NULL",
-        bool b => b ? "1" : "0",
-        string s => "'" + s.Replace("\\", "\\\\").Replace("'", "''") + "'",
-        byte or sbyte or short or ushort or int or uint or long or ulong or decimal =>
-            Convert.ToString(v, CultureInfo.InvariantCulture) ?? "NULL",
-        float or double => Convert.ToString(v, CultureInfo.InvariantCulture) ?? "NULL",
-        DateTime dt => "'" + dt.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture) + "'",
-        byte[] bytes => "0x" + Convert.ToHexString(bytes),
-        _ => "'" + v.ToString()?.Replace("'", "''") + "'"
-    };
+        if (v == null) return "NULL";
+        if (v is bool b) return b ? "1" : "0";
+        if (v is string s) return "'" + s.Replace("\\", "\\\\").Replace("'", "''") + "'";
+        if (v is byte or sbyte or short or ushort or int or uint or long or ulong or decimal)
+            return Convert.ToString(v, CultureInfo.InvariantCulture) ?? "NULL";
+        if (v is float or double) return Convert.ToString(v, CultureInfo.InvariantCulture) ?? "NULL";
+        if (v is DateTime dt)
+            return "'" + dt.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture) + "'";
+        if (v is byte[] bytes) return "0x" + BytesToHex(bytes);
+        return "'" + v.ToString()?.Replace("'", "''") + "'";
+    }
+
+    private static string BytesToHex(byte[] bytes)
+    {
+        var sb = new StringBuilder(bytes.Length * 2);
+        foreach (var x in bytes)
+            sb.Append(x.ToString("x2", CultureInfo.InvariantCulture));
+        return sb.ToString();
+    }
 
     private static string StripInlineComment(string value)
     {
         var idx = value.IndexOf("/*", StringComparison.Ordinal);
-        return idx < 0 ? value.Trim() : value[..idx].Trim();
+        return idx < 0 ? value.Trim() : value.Substring(0, idx).Trim();
     }
 
     private static object? ParseSqlLiteral(string raw)
@@ -270,9 +284,9 @@ public sealed partial class BinlogVerboseRowParser
         if (raw.Equals("NULL", StringComparison.OrdinalIgnoreCase))
             return null;
 
-        if (raw.Length >= 2 && raw[0] == '\'' && raw[^1] == '\'')
+        if (raw.Length >= 2 && raw[0] == '\'' && raw[raw.Length - 1] == '\'')
         {
-            var inner = raw[1..^1].Replace("''", "'");
+            var inner = raw.Substring(1, raw.Length - 2).Replace("''", "'");
             return inner;
         }
 
@@ -280,9 +294,9 @@ public sealed partial class BinlogVerboseRowParser
         {
             try
             {
-                var hex = raw[2..];
+                var hex = raw.Substring(2);
                 if (hex.Length == 0) return Array.Empty<byte>();
-                return Convert.FromHexString(hex);
+                return (object?)ParseHexBytes(hex) ?? raw;
             }
             catch
             {
@@ -299,13 +313,22 @@ public sealed partial class BinlogVerboseRowParser
         return raw;
     }
 
+    private static byte[]? ParseHexBytes(string hex)
+    {
+        if (hex.Length % 2 != 0) return null;
+        var bytes = new byte[hex.Length / 2];
+        for (var i = 0; i < bytes.Length; i++)
+            bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+        return bytes;
+    }
+
     private static bool TryParseBinlogTimestamp(string yyMMdd, string hms, out DateTime dt)
     {
         dt = default;
         if (yyMMdd.Length != 6) return false;
-        if (!int.TryParse(yyMMdd[..2], out var yy)) return false;
-        if (!int.TryParse(yyMMdd[2..4], out var mm)) return false;
-        if (!int.TryParse(yyMMdd[4..6], out var dd)) return false;
+        if (!int.TryParse(yyMMdd.Substring(0, 2), out var yy)) return false;
+        if (!int.TryParse(yyMMdd.Substring(2, 2), out var mm)) return false;
+        if (!int.TryParse(yyMMdd.Substring(4, 2), out var dd)) return false;
         var year = yy >= 70 ? 1900 + yy : 2000 + yy;
         var parts = hms.Split(':');
         if (parts.Length < 3) return false;

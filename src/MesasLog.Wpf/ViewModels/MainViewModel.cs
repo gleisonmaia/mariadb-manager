@@ -39,7 +39,7 @@ public partial class MainViewModel : ObservableObject
         NomeBancoProcessamento = string.IsNullOrWhiteSpace(_opt.Processing.TargetDatabase)
             ? "mesas"
             : _opt.Processing.TargetDatabase;
-        PageSize = Math.Clamp(_opt.Ui.DefaultPageSize, 1, _opt.Ui.MaxPageSize);
+        PageSize = ClampInt(_opt.Ui.DefaultPageSize, 1, _opt.Ui.MaxPageSize);
         Ordenacao = "data_evento";
         var hoje = DateTime.Today;
         DataInicio = hoje;
@@ -70,12 +70,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _dryRunReplay;
     /// <summary>Banco cujo binlog ROW será filtrado (correspondência exata).</summary>
     [ObservableProperty] private string _nomeBancoProcessamento = "mesas";
+    /// <summary>Aba Avançado utilizável; inicia bloqueada — Ctrl+Shift+F1 alterna.</summary>
+    [ObservableProperty] private bool _abaAvancadaDesbloqueada;
 
     public ObservableCollection<BinlogEventLogRow> Eventos { get; } = new();
 
-    public string[] TiposOperacaoLista { get; } = ["", "Insert", "Update", "Delete"];
+    public string[] TiposOperacaoLista { get; } = { "", "Insert", "Update", "Delete" };
 
-    public string[] OrdenacaoOpcoes { get; } = ["data_evento", "banco", "tabela"];
+    public string[] OrdenacaoOpcoes { get; } = { "data_evento", "banco", "tabela" };
 
     [RelayCommand]
     private async Task InicializarEsquemaAsync()
@@ -102,8 +104,10 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task ProcessarBinlogAsync()
     {
+        var inicio = DateTime.Now;
         Processando = true;
         PassoAPasso = "";
+        AppendPasso($"Início: {FormatarDataHoraLocal(inicio)}");
         var progress = new Progress<string>(AppendPasso);
         try
         {
@@ -120,9 +124,15 @@ public partial class MainViewModel : ObservableObject
         }
         finally
         {
+            var fim = DateTime.Now;
+            AppendPasso($"Término: {FormatarDataHoraLocal(fim)}");
+            AppendPasso($"Duração: {FormatarDuracao(fim - inicio)}");
             Processando = false;
         }
     }
+
+    [RelayCommand]
+    private void AlternarAbaAvancada() => AbaAvancadaDesbloqueada = !AbaAvancadaDesbloqueada;
 
     [RelayCommand]
     private async Task ReplayAsync()
@@ -161,9 +171,9 @@ public partial class MainViewModel : ObservableObject
         {
             TipoOperacao? tipo = string.IsNullOrWhiteSpace(TipoOperacaoSelecionado)
                 ? null
-                : Enum.Parse<TipoOperacao>(TipoOperacaoSelecionado, true);
+                : (TipoOperacao)Enum.Parse(typeof(TipoOperacao), TipoOperacaoSelecionado, true);
 
-            var ps = Math.Clamp(PageSize, 1, _opt.Ui.MaxPageSize);
+            var ps = ClampInt(PageSize, 1, _opt.Ui.MaxPageSize);
             PageSize = ps;
 
             if (!TryMontarIntervaloDatas(out var inicioEfetivo, out var fimEfetivo, out var erroIntervalo))
@@ -253,7 +263,7 @@ public partial class MainViewModel : ObservableObject
 
     private int CalcularTotalPaginas()
     {
-        var ps = Math.Clamp(PageSize, 1, _opt.Ui.MaxPageSize);
+        var ps = ClampInt(PageSize, 1, _opt.Ui.MaxPageSize);
         return TotalRegistros <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling(TotalRegistros / (double)ps));
     }
 
@@ -359,5 +369,25 @@ public partial class MainViewModel : ObservableObject
 
         erro = $"Hora inválida: \"{t}\". Use HH:mm ou HH:mm:ss (24 horas).";
         return false;
+    }
+
+    private static string FormatarDataHoraLocal(DateTime dt) =>
+        dt.ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.GetCultureInfo("pt-BR"));
+
+    private static int ClampInt(int value, int min, int max)
+    {
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
+    }
+
+    private static string FormatarDuracao(TimeSpan d)
+    {
+        if (d < TimeSpan.Zero) d = TimeSpan.Zero;
+        var totalSeconds = (long)d.TotalSeconds;
+        var h = (int)(totalSeconds / 3600);
+        var m = (int)(totalSeconds % 3600 / 60);
+        var s = (int)(totalSeconds % 60);
+        return $"{h:D2}:{m:D2}:{s:D2}";
     }
 }

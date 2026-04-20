@@ -12,6 +12,9 @@
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Brush.WindowBg}"
         FontFamily="Segoe UI">
+    <Window.InputBindings>
+        <KeyBinding Key="F1" Modifiers="Control+Shift" Command="{Binding AlternarAbaAvancadaCommand}" />
+    </Window.InputBindings>
     <DockPanel Margin="8">
         <TabControl>
             <TabItem Header="Processamento">
@@ -31,8 +34,6 @@
                         <Grid DockPanel.Dock="Top" Margin="0,0,0,16">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" MinWidth="220" />
-                                <ColumnDefinition Width="16" />
-                                <ColumnDefinition Width="*" MinWidth="220" />
                             </Grid.ColumnDefinitions>
                             <GroupBox Grid.Column="0" Header="Processar binlog" Padding="12,10,12,12"
                                       BorderBrush="{StaticResource Brush.Border}"
@@ -51,19 +52,6 @@
                                     <Button Content="Processar binlog"
                                             Command="{Binding ProcessarBinlogCommand}"
                                             Style="{StaticResource PrimaryButton}"
-                                            HorizontalAlignment="Left" />
-                                </StackPanel>
-                            </GroupBox>
-                            <GroupBox Grid.Column="2" Header="Replay" Padding="12,10,12,12"
-                                      BorderBrush="{StaticResource Brush.Border}"
-                                      ToolTip="Reconstrói tabelas log_* a partir de binlog_event_log.">
-                                <StackPanel>
-                                    <CheckBox Content="Dry-run replay"
-                                              IsChecked="{Binding DryRunReplay}"
-                                              Margin="0,0,0,10" />
-                                    <Button Content="Replay (reconstruir log_*)"
-                                            Command="{Binding ReplayCommand}"
-                                            Style="{StaticResource ToolbarButton}"
                                             HorizontalAlignment="Left" />
                                 </StackPanel>
                             </GroupBox>
@@ -323,8 +311,8 @@
             </TabItem>
 
             <TabItem Header="Avançado"
-                     IsEnabled="False"
-                     ToolTip="Esta aba estará disponível numa versão futura.">
+                     IsEnabled="{Binding AbaAvancadaDesbloqueada}"
+                     ToolTip="Bloqueada. Ctrl+Shift+F1 libera ou volta a bloquear esta aba.">
                 <Border Background="{StaticResource Brush.Surface}"
                         BorderBrush="{StaticResource Brush.Border}"
                         BorderThickness="1"
@@ -332,6 +320,19 @@
                         Padding="16"
                         Margin="0,4,0,0">
                     <StackPanel>
+                        <GroupBox Header="Replay" Padding="12,10,12,12" Margin="0,0,0,16"
+                                  BorderBrush="{StaticResource Brush.Border}"
+                                  ToolTip="Reconstrói tabelas log_* a partir de binlog_event_log.">
+                            <StackPanel>
+                                <CheckBox Content="Dry-run replay"
+                                          IsChecked="{Binding DryRunReplay}"
+                                          Margin="0,0,0,10" />
+                                <Button Content="Replay (reconstruir log_*)"
+                                        Command="{Binding ReplayCommand}"
+                                        Style="{StaticResource ToolbarButton}"
+                                        HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </GroupBox>
                         <TextBlock Text="Esquema e dados de referência"
                                    FontSize="12"
                                    FontWeight="SemiBold"

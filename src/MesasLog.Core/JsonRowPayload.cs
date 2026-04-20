@@ -8,7 +8,7 @@ namespace MesasLog.Core;
 public sealed class JsonRowPayload
 {
     [JsonPropertyName("columns")]
-    public List<string> Columns { get; set; } = [];
+    public List<string> Columns { get; set; } = new();
 
     [JsonPropertyName("values")]
     public Dictionary<string, object?> Values { get; set; } = new(StringComparer.OrdinalIgnoreCase);

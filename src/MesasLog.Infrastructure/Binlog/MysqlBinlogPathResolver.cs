@@ -2,8 +2,15 @@ using Microsoft.Extensions.Logging;
 
 namespace MesasLog.Infrastructure.Binlog;
 
-public sealed class MysqlBinlogPathResolver(ILogger<MysqlBinlogPathResolver> logger)
+public sealed class MysqlBinlogPathResolver
 {
+    private readonly ILogger<MysqlBinlogPathResolver> _logger;
+
+    public MysqlBinlogPathResolver(ILogger<MysqlBinlogPathResolver> logger)
+    {
+        _logger = logger;
+    }
+
     public string? ResolveMysqlBinlogExecutable(string? configuredPath)
     {
         if (!string.IsNullOrWhiteSpace(configuredPath) && File.Exists(configuredPath))
@@ -36,11 +43,11 @@ public sealed class MysqlBinlogPathResolver(ILogger<MysqlBinlogPathResolver> log
             }
             catch (Exception ex)
             {
-                logger.LogDebug(ex, "Busca em {Root} ignorada.", root);
+                _logger.LogDebug(ex, "Busca em {Root} ignorada.", root);
             }
         }
 
-        logger.LogWarning("mysqlbinlog não encontrado. Configure MesasLog:Binlog:MysqlBinlogPath ou instale o MariaDB/MySQL Client.");
+        _logger.LogWarning("mysqlbinlog não encontrado. Configure MesasLog:Binlog:MysqlBinlogPath ou instale o MariaDB/MySQL Client.");
         return null;
     }
 
@@ -67,11 +74,11 @@ public sealed class MysqlBinlogPathResolver(ILogger<MysqlBinlogPathResolver> log
             }
             catch (Exception ex)
             {
-                logger.LogDebug(ex, "Busca de data dir em {Root} ignorada.", root);
+                _logger.LogDebug(ex, "Busca de data dir em {Root} ignorada.", root);
             }
         }
 
-        logger.LogWarning("Diretório de binlogs não detectado. Configure MesasLog:Binlog:BinlogDirectory.");
+        _logger.LogWarning("Diretório de binlogs não detectado. Configure MesasLog:Binlog:BinlogDirectory.");
         return null;
     }
 
@@ -90,7 +97,7 @@ public sealed class MysqlBinlogPathResolver(ILogger<MysqlBinlogPathResolver> log
     private static string? FindOnPath(string fileName)
     {
         var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? "";
-        foreach (var segment in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        foreach (var segment in pathEnv.Split(new[] { Path.PathSeparator }, StringSplitOptions.RemoveEmptyEntries))
         {
             var full = Path.Combine(segment.Trim('"'), fileName);
             if (File.Exists(full)) return full;

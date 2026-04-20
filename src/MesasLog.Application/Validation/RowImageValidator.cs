@@ -3,8 +3,15 @@ using Microsoft.Extensions.Logging;
 
 namespace MesasLog.Application.Validation;
 
-public sealed class RowImageValidator(ILogger<RowImageValidator> logger)
+public sealed class RowImageValidator
 {
+    private readonly ILogger<RowImageValidator> _logger;
+
+    public RowImageValidator(ILogger<RowImageValidator> logger)
+    {
+        _logger = logger;
+    }
+
     public bool Validate(BinlogParsedRowEvent e, out string? message)
     {
         message = null;
@@ -15,14 +22,14 @@ public sealed class RowImageValidator(ILogger<RowImageValidator> logger)
                 if (e.Before is { Values.Count: > 0 })
                 {
                     message = "INSERT com dados_antes inesperado.";
-                    logger.LogError("{Msg}", message);
+                    _logger.LogError("{Msg}", message);
                     return false;
                 }
 
                 if (e.After is not { Values.Count: > 0 })
                 {
                     message = "INSERT sem dados_depois.";
-                    logger.LogError("{Msg}", message);
+                    _logger.LogError("{Msg}", message);
                     return false;
                 }
 
@@ -31,14 +38,14 @@ public sealed class RowImageValidator(ILogger<RowImageValidator> logger)
                 if (e.After is { Values.Count: > 0 })
                 {
                     message = "DELETE com dados_depois inesperado.";
-                    logger.LogError("{Msg}", message);
+                    _logger.LogError("{Msg}", message);
                     return false;
                 }
 
                 if (e.Before is not { Values.Count: > 0 })
                 {
                     message = "DELETE sem dados_antes.";
-                    logger.LogError("{Msg}", message);
+                    _logger.LogError("{Msg}", message);
                     return false;
                 }
 
@@ -47,14 +54,14 @@ public sealed class RowImageValidator(ILogger<RowImageValidator> logger)
                 if (e.Before is not { Values.Count: > 0 } || e.After is not { Values.Count: > 0 })
                 {
                     message = "UPDATE exige dados_antes e dados_depois.";
-                    logger.LogError("{Msg}", message);
+                    _logger.LogError("{Msg}", message);
                     return false;
                 }
 
                 if (!HasAnyDifference(e.Before, e.After))
                 {
                     message = "UPDATE sem colunas alteradas entre antes e depois.";
-                    logger.LogError("{Msg}", message);
+                    _logger.LogError("{Msg}", message);
                     return false;
                 }
 
