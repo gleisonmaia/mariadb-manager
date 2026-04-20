@@ -7,7 +7,7 @@ internal static class SingleInstanceGuard
     public static bool TryAcquire(out string? message)
     {
         message = null;
-        const string name = @"Global\MariaDBLogExplorer.SingleInstance";
+        const string name = @"Global\MariaDBManager.SingleInstance";
         try
         {
             _mutex = new Mutex(true, name, out var createdNew);

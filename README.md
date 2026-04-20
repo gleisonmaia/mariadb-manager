@@ -1,4 +1,4 @@
-# MariaDB Log Explorer
+# MariaDB Manager
 
 Aplicação desktop (WPF, .NET Framework 4.8) para ler o binary log do MariaDB, persistir eventos e consultar o histórico.
 

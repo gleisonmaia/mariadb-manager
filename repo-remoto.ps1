@@ -4,7 +4,7 @@
 # 2) Na raiz do projeto:  .\repo-remoto.ps1
 #
 param(
-    [string]$NomeRepo = "mariadb-log-explorer",
+    [string]$NomeRepo = "mariadb-manager",
     [ValidateSet("public", "private")]
     [string]$Visibilidade = "private"
 )

@@ -36,7 +36,7 @@ Este documento resume o escopo definido para o leitor de binary log do MariaDB, 
 
 ## 5. Aplicação desktop (WPF, MVVM)
 
-- Abas ou áreas para: processamento (passo a passo) e consulta à tabela de log.
+- Abas ou áreas para: análise de logs (sub-abas de processamento passo a passo e consulta à tabela de log).
 - Consulta com filtros: banco, tabela, intervalo de datas, tipo de operação, texto em `query_sql`; ordenação por data_evento, banco, tabela; paginação com tamanho máximo configurável; total de registros; indicador de carregamento; cancelamento de consulta longa.
 
 ## 6. Arquitetura e implantação

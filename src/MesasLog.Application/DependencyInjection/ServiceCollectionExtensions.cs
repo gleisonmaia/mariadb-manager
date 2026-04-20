@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<RowImageValidator>();
         services.AddSingleton<BinlogIngestionService>();
         services.AddSingleton<DataReplayService>();
+        services.AddSingleton<DatabaseBackupRestoreService>();
         return services;
     }
 }

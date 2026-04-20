@@ -24,9 +24,9 @@
     <OutputType>WinExe</OutputType>
     <!-- TargetFramework: Directory.Build.props -->
     <UseWPF>true</UseWPF>
-    <AssemblyName>MariaDBLogExplorer</AssemblyName>
-    <Product>Maria DB - Log Explorer</Product>
-    <AssemblyTitle>Maria DB - Log Explorer</AssemblyTitle>
+    <AssemblyName>MariaDBManager</AssemblyName>
+    <Product>MariaDB Manager</Product>
+    <AssemblyTitle>MariaDB Manager</AssemblyTitle>
     <ApplicationIcon>AppIcon.ico</ApplicationIcon>
     <SelfContained>false</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
@@ -38,6 +38,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Cliente mysqldump/mysql portátil: coloque mysqldump.exe, mysql.exe e DLLs em client\ (ou client\bin\) ao lado do .exe -->
+    <Content Include="client\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="AppIcon.ico" />
     <None Update="appsettings.json">
       <CopyToOutputDirectory Condition="'$(Configuration)' == 'Debug'">PreserveNewest</CopyToOutputDirectory>
@@ -47,6 +59,13 @@
     </None>
     <EmbeddedResource Include="appsettings.json" />
     <EmbeddedResource Include="mesas.sql" />
+  </ItemGroup>
+
+  <!-- ZIP com mysqldump.exe, mysql.exe e DLLs da pasta bin (MariaDB/MySQL). Se existir, embute e extrai na 1ª execução. -->
+  <ItemGroup Condition="Exists('Resources\mysqlclient-bundle.zip')">
+    <EmbeddedResource Include="Resources\mysqlclient-bundle.zip">
+      <LogicalName>MesasLog.Wpf.Resources.mysqlclient-bundle.zip</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

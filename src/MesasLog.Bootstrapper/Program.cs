@@ -5,7 +5,7 @@ using Microsoft.Win32;
 namespace MesasLog.Bootstrapper;
 
 /// <summary>
-/// Launcher leve: verifica .NET Framework 4.8 (Release &gt;= 528040) e inicia MariaDBLogExplorer.exe.
+/// Launcher leve: verifica .NET Framework 4.8 (Release &gt;= 528040) e inicia MariaDBManager.exe.
 /// Na publicação padrão o WPF fica em subpasta "app\".
 /// </summary>
 internal static class Program
@@ -16,8 +16,8 @@ internal static class Program
     private const string DefaultFrameworkDownloadUrl =
         "https://dotnet.microsoft.com/pt-br/download/dotnet-framework/net48";
 
-    private const string MainExeName = "MariaDBLogExplorer.exe";
-    private const string LauncherConfigFileName = "MariaDBLogExplorer.Launcher.exe.config";
+    private const string MainExeName = "MariaDBManager.exe";
+    private const string LauncherConfigFileName = "MariaDBManager.Launcher.exe.config";
     private const string SettingsFileName = "bootstrapper.settings.json";
 
     /// <summary>Valor mínimo de Release no registro para considerar .NET 4.8 instalado.</summary>
@@ -40,7 +40,7 @@ internal static class Program
         {
             Console.Error.WriteLine($"Não foi encontrado o aplicativo: {mainExe}");
             Console.Error.WriteLine(
-                $"Coloque MariaDBLogExplorer.Launcher.exe na raiz e o conteúdo do app (incluindo MariaDBLogExplorer.exe) na pasta \"{ApplicationSubfolderName}\" (ou tudo na mesma pasta do launcher, layout antigo).");
+                $"Coloque MariaDBManager.Launcher.exe na raiz e o conteúdo do app (incluindo MariaDBManager.exe) na pasta \"{ApplicationSubfolderName}\" (ou tudo na mesma pasta do launcher, layout antigo).");
             PauseIfConsole();
             return 1;
         }
@@ -50,7 +50,7 @@ internal static class Program
         if (!IsDotNet48OrGreaterInstalled())
         {
             Console.WriteLine(".NET Framework 4.8 não detectado (ou versão abaixo da necessária).");
-            Console.WriteLine("É necessário para executar o Maria DB - Log Explorer.");
+            Console.WriteLine("É necessário para executar o MariaDB Manager.");
             Console.WriteLine();
             Console.WriteLine("Abrir a página de download da Microsoft agora? (S/N) [S]: ");
             var line = Console.ReadLine();

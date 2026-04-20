@@ -1,7 +1,7 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!--
     Publicação via publish-release.ps1 (launcher + WPF em app\).
-    Uso: dotnet msbuild MesasLog.Publish.proj -t:PublishRelease
+    Uso: dotnet msbuild mariadb-manager.Publish.proj -t:PublishRelease
   -->
   <PropertyGroup>
     <Configuration Condition="'$(Configuration)'==''">Release</Configuration>

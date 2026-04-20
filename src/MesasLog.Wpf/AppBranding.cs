@@ -6,7 +6,7 @@ namespace MesasLog.Wpf;
 internal static class AppBranding
 {
     /// <summary>Título base da janela principal (sem versão).</summary>
-    public const string MainWindowTitle = "Maria DB - Log Explorer";
+    public const string MainWindowTitle = "MariaDB Manager";
 
     public static string GetMainWindowTitleWithVersion(Assembly assembly)
     {
@@ -23,6 +23,6 @@ internal static class AppBranding
             return plus >= 0 ? info.Substring(0, plus) : info;
         }
 
-        return asm.GetName().Version?.ToString(3) ?? "2.0.0";
+        return asm.GetName().Version?.ToString(3) ?? "1.0.0";
     }
 }

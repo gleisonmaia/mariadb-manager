@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Maria DB - Log Explorer"
+        Title="MariaDB Manager"
         Loaded="MainWindow_OnLoaded"
         Icon="pack://application:,,,/AppIcon.ico"
         Height="720" Width="960"
@@ -13,11 +13,17 @@
         Background="{StaticResource Brush.WindowBg}"
         FontFamily="Segoe UI">
     <Window.InputBindings>
-        <KeyBinding Key="F1" Modifiers="Control+Shift" Command="{Binding AlternarAbaAvancadaCommand}" />
+        <KeyBinding Key="F11" Modifiers="Control+Shift" Command="{Binding AlternarAbaAvancadaCommand}" />
     </Window.InputBindings>
     <DockPanel Margin="8">
         <TabControl>
-            <TabItem Header="Processamento">
+            <TabItem Header="Análise de logs">
+                <TabControl Margin="0,2,0,0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="0"
+                            ItemContainerStyle="{StaticResource SubTabItemStyle}">
+                    <TabItem Header="Processamento">
                 <Border Background="{StaticResource Brush.Surface}"
                         BorderBrush="{StaticResource Brush.Border}"
                         BorderThickness="1"
@@ -308,11 +314,241 @@
                         </DockPanel>
                     </Border>
                 </Grid>
+                    </TabItem>
+                </TabControl>
+            </TabItem>
+
+            <TabItem Header="Backup/Restauração">
+                <Border Background="{StaticResource Brush.Surface}"
+                        BorderBrush="{StaticResource Brush.Border}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="12"
+                        Margin="0,4,0,0">
+                    <TabControl Background="Transparent"
+                                BorderThickness="0"
+                                Padding="0"
+                                ItemContainerStyle="{StaticResource SubTabItemStyle}">
+
+                        <TabItem Header="Origem (Backup)">
+                            <DockPanel LastChildFill="True" Margin="0,8,0,0">
+                                <ScrollViewer DockPanel.Dock="Top"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              MaxHeight="380">
+                                    <GroupBox Padding="12,10,12,12"
+                                              BorderBrush="{StaticResource Brush.Border}"
+                                              Header="Conexão — origem">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" MinWidth="136" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="*" MinWidth="120" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="112" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Tipo Banco" Style="{StaticResource FilterLabel}" />
+                                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Servidor" Style="{StaticResource FilterLabel}" />
+                                                <TextBlock Grid.Row="0" Grid.Column="4" Text="Porta" Style="{StaticResource FilterLabel}" />
+                                                <ComboBox Grid.Row="1" Grid.Column="0"
+                                                          ItemsSource="{Binding TiposBancoBackup}"
+                                                          SelectedItem="{Binding TipoBancoOrigem}"
+                                                          MinWidth="120"
+                                                          ToolTip="MySQL ou MariaDB (sem valor padrão)." />
+                                                <TextBox Grid.Row="1" Grid.Column="2"
+                                                         Text="{Binding ServidorOrigem, UpdateSourceTrigger=PropertyChanged}" />
+                                                <TextBox Grid.Row="1" Grid.Column="4"
+                                                         Text="{Binding PortaOrigemTexto, UpdateSourceTrigger=PropertyChanged}" />
+                                            </Grid>
+                                            <TextBlock Text="Banco" Style="{StaticResource FilterLabel}" />
+                                            <TextBox Text="{Binding BancoOrigem, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,0,10" />
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="Usuário" Style="{StaticResource FilterLabel}" />
+                                                    <TextBox Text="{Binding UsuarioOrigem, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Senha" Style="{StaticResource FilterLabel}" />
+                                                    <TextBox Text="{Binding SenhaOrigem, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <Button Content="Realizar Backup"
+                                                    Command="{Binding RealizarBackupOrigemCommand}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                                                        <Setter Property="HorizontalAlignment" Value="Left" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ProcessandoBackupOrigem}" Value="True">
+                                                                <Setter Property="IsEnabled" Value="False" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding ProcessandoRestauracao}" Value="True">
+                                                                <Setter Property="IsEnabled" Value="False" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </StackPanel>
+                                    </GroupBox>
+                                </ScrollViewer>
+                                <TextBlock DockPanel.Dock="Top"
+                                           Text="Passo a passo"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource Brush.TextSecondary}"
+                                           Margin="0,8,0,8" />
+                                <Border Background="#0F172A"
+                                        BorderBrush="{StaticResource Brush.Border}"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                    <TextBox Text="{Binding PassoPassoBackupOrigem, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             MinHeight="160"
+                                             VerticalScrollBarVisibility="Auto"
+                                             TextWrapping="Wrap"
+                                             FontFamily="Consolas"
+                                             FontSize="12"
+                                             Foreground="#E2E8F0"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             Padding="12"
+                                             TextChanged="PassoAPassoTextBox_OnTextChanged" />
+                                </Border>
+                            </DockPanel>
+                        </TabItem>
+
+                        <TabItem Header="Destino (Restauração)">
+                            <DockPanel LastChildFill="True" Margin="0,8,0,0">
+                                <ScrollViewer DockPanel.Dock="Top"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              MaxHeight="380">
+                                    <GroupBox Padding="12,10,12,12"
+                                              BorderBrush="{StaticResource Brush.Border}"
+                                              Header="Conexão e arquivo — destino">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" MinWidth="136" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="*" MinWidth="120" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="112" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Tipo Banco" Style="{StaticResource FilterLabel}" />
+                                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Servidor" Style="{StaticResource FilterLabel}" />
+                                                <TextBlock Grid.Row="0" Grid.Column="4" Text="Porta" Style="{StaticResource FilterLabel}" />
+                                                <ComboBox Grid.Row="1" Grid.Column="0"
+                                                          ItemsSource="{Binding TiposBancoBackup}"
+                                                          SelectedItem="{Binding TipoBancoDestino}"
+                                                          MinWidth="120" />
+                                                <TextBox Grid.Row="1" Grid.Column="2"
+                                                         Text="{Binding ServidorDestino, UpdateSourceTrigger=PropertyChanged}" />
+                                                <TextBox Grid.Row="1" Grid.Column="4"
+                                                         Text="{Binding PortaDestinoTexto, UpdateSourceTrigger=PropertyChanged}" />
+                                            </Grid>
+                                            <TextBlock Text="Banco" Style="{StaticResource FilterLabel}" />
+                                            <TextBox Text="{Binding BancoDestino, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,0,10" />
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="Usuário" Style="{StaticResource FilterLabel}" />
+                                                    <TextBox Text="{Binding UsuarioDestino, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Senha" Style="{StaticResource FilterLabel}" />
+                                                    <TextBox Text="{Binding SenhaDestino, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <TextBlock Text="Arquivo para importar" Style="{StaticResource FilterLabel}" />
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="8" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox Grid.Column="0"
+                                                         Text="{Binding ArquivoSqlDestino, UpdateSourceTrigger=PropertyChanged}"
+                                                         IsReadOnly="True"
+                                                         ToolTip="Apenas arquivos .sql" />
+                                                <Button Grid.Column="2"
+                                                        Content="Procurar…"
+                                                        Command="{Binding SelecionarArquivoSqlDestinoCommand}"
+                                                        Style="{StaticResource ToolbarButton}"
+                                                        Padding="12,6"
+                                                        MinHeight="30" />
+                                            </Grid>
+                                            <Button Content="Restaurar Banco"
+                                                    Command="{Binding RestaurarBancoDestinoCommand}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                                                        <Setter Property="HorizontalAlignment" Value="Left" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ProcessandoRestauracao}" Value="True">
+                                                                <Setter Property="IsEnabled" Value="False" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding ProcessandoBackupOrigem}" Value="True">
+                                                                <Setter Property="IsEnabled" Value="False" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                        </StackPanel>
+                                    </GroupBox>
+                                </ScrollViewer>
+                                <TextBlock DockPanel.Dock="Top"
+                                           Text="Passo a passo"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource Brush.TextSecondary}"
+                                           Margin="0,8,0,8" />
+                                <Border Background="#0F172A"
+                                        BorderBrush="{StaticResource Brush.Border}"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                    <TextBox Text="{Binding PassoPassoRestauracao, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             MinHeight="160"
+                                             VerticalScrollBarVisibility="Auto"
+                                             TextWrapping="Wrap"
+                                             FontFamily="Consolas"
+                                             FontSize="12"
+                                             Foreground="#E2E8F0"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             Padding="12"
+                                             TextChanged="PassoAPassoTextBox_OnTextChanged" />
+                                </Border>
+                            </DockPanel>
+                        </TabItem>
+                    </TabControl>
+                </Border>
             </TabItem>
 
             <TabItem Header="Avançado"
                      IsEnabled="{Binding AbaAvancadaDesbloqueada}"
-                     ToolTip="Bloqueada. Ctrl+Shift+F1 libera ou volta a bloquear esta aba.">
+                     ToolTip="Bloqueada. Ctrl+Shift+F11 libera ou volta a bloquear esta aba.">
                 <Border Background="{StaticResource Brush.Surface}"
                         BorderBrush="{StaticResource Brush.Border}"
                         BorderThickness="1"

@@ -4,9 +4,9 @@
     <OutputType>Exe</OutputType>
     <!-- TargetFramework: Directory.Build.props -->
     <RootNamespace>MesasLog.Bootstrapper</RootNamespace>
-    <AssemblyName>MariaDBLogExplorer.Launcher</AssemblyName>
-    <Product>Maria DB - Log Explorer</Product>
-    <AssemblyTitle>Maria DB - Log Explorer</AssemblyTitle>
+    <AssemblyName>MariaDBManager.Launcher</AssemblyName>
+    <Product>MariaDB Manager</Product>
+    <AssemblyTitle>MariaDB Manager</AssemblyTitle>
     <ApplicationIcon>..\MesasLog.Wpf\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 

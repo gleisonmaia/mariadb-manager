@@ -1,4 +1,4 @@
 {
   "frameworkDownloadUrl": "https://dotnet.microsoft.com/pt-br/download/dotnet-framework/net48",
-  "mainExeName": "MariaDBLogExplorer.exe"
+  "mainExeName": "MariaDBManager.exe"
 }

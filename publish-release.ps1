@@ -1,4 +1,4 @@
-# Publica: MariaDBLogExplorer.Launcher.exe + app\MariaDBLogExplorer.exe (.NET Framework 4.8).
+# Publica: MariaDBManager.Launcher.exe + app\MariaDBManager.exe (.NET Framework 4.8).
 # O WPF é empacotado com Costura.Fody: dependências geridas fundidas num único .exe (sem DLLs satélite).
 # O launcher verifica o .NET Framework 4.8 no registro; se não houver, oferece abrir a página de download.
 # appsettings.json e mesas.sql estão embutidos no assembly; pode haver appsettings.json opcional em app\.
@@ -36,15 +36,15 @@ dotnet publish (Join-Path $root "src\MesasLog.Wpf\MesasLog.Wpf.csproj") `
     -o $appPath
 
 # Config do launcher: na raiz fica só o .exe; o .config vai para app\ (o programa define APP_CONFIG_FILE em runtime).
-$launcherConfigSrc = Join-Path $outPath "MariaDBLogExplorer.Launcher.exe.config"
-$launcherConfigDest = Join-Path $appPath "MariaDBLogExplorer.Launcher.exe.config"
+$launcherConfigSrc = Join-Path $outPath "MariaDBManager.Launcher.exe.config"
+$launcherConfigDest = Join-Path $appPath "MariaDBManager.Launcher.exe.config"
 if (Test-Path -LiteralPath $launcherConfigSrc) {
     Move-Item -LiteralPath $launcherConfigSrc -Destination $launcherConfigDest -Force
 }
 
-# Raiz: apenas MariaDBLogExplorer.Launcher.exe
+# Raiz: apenas MariaDBManager.Launcher.exe
 Get-ChildItem -LiteralPath $outPath -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -ne "MariaDBLogExplorer.Launcher.exe" } |
+    Where-Object { $_.Name -ne "MariaDBManager.Launcher.exe" } |
     Remove-Item -Force -ErrorAction SilentlyContinue
 
 Get-ChildItem -LiteralPath $outPath -Filter *.pdb -File -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
@@ -63,32 +63,32 @@ if (Test-Path $example) {
     Copy-Item -Path $example -Destination $settingsDest -Force
 }
 
-$batPath = Join-Path $appPath "Iniciar Maria DB Log Explorer.bat"
+$batPath = Join-Path $appPath "Iniciar MariaDB Manager.bat"
 @'
 @echo off
-start "" "%~dp0..\MariaDBLogExplorer.Launcher.exe" %*
+start "" "%~dp0..\MariaDBManager.Launcher.exe" %*
 '@ | Set-Content -Path $batPath -Encoding ascii
 
 if (-not $NoShortcut -and $env:OS -match 'Windows') {
     try {
-        $launcher = Join-Path $outPath "MariaDBLogExplorer.Launcher.exe"
-        $lnkPath = Join-Path $appPath "Maria DB Log Explorer.lnk"
+        $launcher = Join-Path $outPath "MariaDBManager.Launcher.exe"
+        $lnkPath = Join-Path $appPath "MariaDB Manager.lnk"
         $w = New-Object -ComObject WScript.Shell
         $s = $w.CreateShortcut($lnkPath)
         $s.TargetPath = $launcher
         $s.WorkingDirectory = $outPath
-        $s.Description = "Maria DB - Log Explorer (launcher)"
+        $s.Description = "MariaDB Manager (launcher)"
         $s.Save()
         [System.Runtime.InteropServices.Marshal]::ReleaseComObject($s) | Out-Null
         [System.Runtime.InteropServices.Marshal]::ReleaseComObject($w) | Out-Null
     }
     catch {
-        Write-Warning "Não foi possível criar Maria DB Log Explorer.lnk: $($_.Exception.Message)"
+        Write-Warning "Não foi possível criar MariaDB Manager.lnk: $($_.Exception.Message)"
     }
 }
 
-$launcherExe = Join-Path $outPath "MariaDBLogExplorer.Launcher.exe"
-$wpfExe = Join-Path $appPath "MariaDBLogExplorer.exe"
+$launcherExe = Join-Path $outPath "MariaDBManager.Launcher.exe"
+$wpfExe = Join-Path $appPath "MariaDBManager.exe"
 if (Test-Path -LiteralPath $launcherExe) {
     $lnKb = [math]::Round((Get-Item $launcherExe).Length / 1KB, 1)
     Write-Host "Launcher: ~ $lnKb KB"
@@ -100,4 +100,4 @@ if (Test-Path -LiteralPath $wpfExe) {
 
 Write-Host ""
 Write-Host "Concluído: $outPath"
-Write-Host "Distribua a pasta completa. O utilizador abre MariaDBLogExplorer.Launcher.exe (raiz). Opcional: appsettings.json em app\ para personalizar."
+Write-Host "Distribua a pasta completa. O utilizador abre MariaDBManager.Launcher.exe (raiz). Opcional: appsettings.json em app\ para personalizar."

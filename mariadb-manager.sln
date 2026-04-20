@@ -15,7 +15,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MesasLog.Wpf", "src\MesasLo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MesasLog.Bootstrapper", "src\MesasLog.Bootstrapper\MesasLog.Bootstrapper.csproj", "{F0D564DD-055C-42EC-971B-E779F7794D23}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MesasLog.Publish", "MesasLog.Publish.proj", "{E8F31A1C-9C4B-4B2A-8F1D-1A2B3C4D5E6F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mariadb-manager.Publish", "mariadb-manager.Publish.proj", "{E8F31A1C-9C4B-4B2A-8F1D-1A2B3C4D5E6F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

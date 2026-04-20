@@ -56,6 +56,9 @@ public partial class App : System.Windows.Application
 
         await _host.StartAsync();
 
+        var logFactory = _host.Services.GetRequiredService<ILoggerFactory>();
+        MysqlClientEmbeddedExtractor.TryEnsureExtracted(logFactory.CreateLogger("MysqlClientEmbedded"));
+
         try
         {
             var schema = _host.Services.GetRequiredService<SchemaInitializer>();

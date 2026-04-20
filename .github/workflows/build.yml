@@ -19,7 +19,7 @@ jobs:
           dotnet-version: "9.0.x"
 
       - name: Restore and build solution
-        run: dotnet build MesasLog.sln -c Release --verbosity minimal
+        run: dotnet build mariadb-manager.sln -c Release --verbosity minimal
 
       - name: Publish distribution (launcher + WPF)
         shell: pwsh
@@ -28,5 +28,5 @@ jobs:
       - name: Upload publish folder
         uses: actions/upload-artifact@v4
         with:
-          name: MesasLog-win-x64-publish
+          name: mariadb-manager-win-x64-publish
           path: publish/

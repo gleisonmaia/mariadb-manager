@@ -24,6 +24,52 @@
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
+        <!-- Abas internas (ex.: Análise de logs, Backup/Restauração): selecionada com borda accent -->
+        <Style x:Key="SubTabItemStyle" TargetType="TabItem">
+            <Setter Property="Padding" Value="18,11" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
+            <Setter Property="Background" Value="#E8EDF4" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6,6,0,0"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter x:Name="Content"
+                                                ContentSource="Header"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource Brush.Surface}" />
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
+                                <Setter TargetName="TabBorder" Property="BorderThickness" Value="2,2,2,0" />
+                                <Setter Property="Foreground" Value="{StaticResource Brush.Accent}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsSelected" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="TabBorder" Property="Background" Value="#F1F5F9" />
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="GroupBox">
             <Setter Property="Padding" Value="14,12,14,14" />
             <Setter Property="Margin" Value="0,0,0,12" />

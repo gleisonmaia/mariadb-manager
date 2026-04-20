@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -9,6 +10,7 @@ using MesasLog.Core;
 using MesasLog.Infrastructure.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Win32;
 
 namespace MesasLog.Wpf.ViewModels;
 
@@ -18,6 +20,7 @@ public partial class MainViewModel : ObservableObject
     private readonly DataReplayService _replay;
     private readonly BinlogEventRepository _events;
     private readonly SchemaInitializer _schema;
+    private readonly DatabaseBackupRestoreService _backupRestore;
     private readonly MesasLogOptions _opt;
     private readonly ILogger<MainViewModel> _logger;
     private CancellationTokenSource? _queryCts;
@@ -27,6 +30,7 @@ public partial class MainViewModel : ObservableObject
         DataReplayService replay,
         BinlogEventRepository events,
         SchemaInitializer schema,
+        DatabaseBackupRestoreService backupRestore,
         IOptions<MesasLogOptions> options,
         ILogger<MainViewModel> logger)
     {
@@ -34,6 +38,7 @@ public partial class MainViewModel : ObservableObject
         _replay = replay;
         _events = events;
         _schema = schema;
+        _backupRestore = backupRestore;
         _opt = options.Value;
         _logger = logger;
         NomeBancoProcessamento = string.IsNullOrWhiteSpace(_opt.Processing.TargetDatabase)
@@ -70,14 +75,255 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _dryRunReplay;
     /// <summary>Banco cujo binlog ROW será filtrado (correspondência exata).</summary>
     [ObservableProperty] private string _nomeBancoProcessamento = "mesas";
-    /// <summary>Aba Avançado utilizável; inicia bloqueada — Ctrl+Shift+F1 alterna.</summary>
+    /// <summary>Aba Avançado utilizável; inicia bloqueada — Ctrl+Shift+F11 alterna.</summary>
     [ObservableProperty] private bool _abaAvancadaDesbloqueada;
+
+    [ObservableProperty] private string? _tipoBancoOrigem;
+    [ObservableProperty] private string _servidorOrigem = "";
+    [ObservableProperty] private string _portaOrigemTexto = "3306";
+    [ObservableProperty] private string _bancoOrigem = "mesas";
+    [ObservableProperty] private string _usuarioOrigem = "softcom";
+    [ObservableProperty] private string _senhaOrigem = "";
+    [ObservableProperty] private string _passoPassoBackupOrigem = "";
+    [ObservableProperty] private bool _processandoBackupOrigem;
+
+    [ObservableProperty] private string? _tipoBancoDestino;
+    [ObservableProperty] private string _servidorDestino = "";
+    [ObservableProperty] private string _portaDestinoTexto = "3306";
+    [ObservableProperty] private string _bancoDestino = "mesas";
+    [ObservableProperty] private string _usuarioDestino = "softcom";
+    [ObservableProperty] private string _senhaDestino = "";
+    [ObservableProperty] private string _arquivoSqlDestino = "";
+    [ObservableProperty] private string _passoPassoRestauracao = "";
+    [ObservableProperty] private bool _processandoRestauracao;
 
     public ObservableCollection<BinlogEventLogRow> Eventos { get; } = new();
 
     public string[] TiposOperacaoLista { get; } = { "", "Insert", "Update", "Delete" };
 
     public string[] OrdenacaoOpcoes { get; } = { "data_evento", "banco", "tabela" };
+
+    public string[] TiposBancoBackup { get; } = { "MySQL", "MariaDB" };
+
+    [RelayCommand]
+    private async Task RealizarBackupOrigemAsync()
+    {
+        if (!TryValidarEndpointOrigem(out var host, out var port, out var erro))
+        {
+            MessageBox.Show(erro, "Backup (origem)", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        ProcessandoBackupOrigem = true;
+        PassoPassoBackupOrigem = "";
+        var inicio = DateTime.Now;
+        AppendPassoBackup($"Início: {FormatarDataHoraLocal(inicio)}");
+        var progress = new Progress<string>(AppendPassoBackup);
+        try
+        {
+            var launcherDir = LauncherLayout.GetLauncherDirectory();
+            AppendPassoBackup($"Pasta do launcher: {launcherDir}");
+            var caminho = await _backupRestore.RealizarBackupOrigemAsync(
+                launcherDir,
+                TipoBancoOrigem!,
+                host,
+                port,
+                BancoOrigem.Trim(),
+                UsuarioOrigem.Trim(),
+                SenhaOrigem,
+                progress,
+                CancellationToken.None);
+
+            var pasta = Path.GetDirectoryName(caminho) ?? launcherDir;
+            MessageBox.Show(
+                "Backup realizado com sucesso em " + caminho + ". Confira se os dados foram gerados corretamente.",
+                "Backup",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            if (MessageBox.Show(
+                    "Deseja abrir a pasta do backup?",
+                    "Backup",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question) == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = pasta,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Abrir pasta do backup");
+                    MessageBox.Show("Não foi possível abrir a pasta: " + ex.Message, "Explorador", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Backup origem");
+            AppendPassoBackup("Erro: " + ex.Message);
+            MessageBox.Show(ex.Message, "Backup (origem)", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            AppendPassoBackup($"Término: {FormatarDataHoraLocal(DateTime.Now)}");
+            ProcessandoBackupOrigem = false;
+        }
+    }
+
+    [RelayCommand]
+    private void SelecionarArquivoSqlDestino()
+    {
+        var dlg = new OpenFileDialog
+        {
+            Filter = "Arquivos SQL (*.sql)|*.sql|Todos os arquivos (*.*)|*.*",
+            CheckFileExists = true
+        };
+        if (dlg.ShowDialog() == true)
+            ArquivoSqlDestino = dlg.FileName;
+    }
+
+    [RelayCommand]
+    private async Task RestaurarBancoDestinoAsync()
+    {
+        if (!TryValidarEndpointDestino(out var host, out var port, out var erro))
+        {
+            MessageBox.Show(erro, "Restauração (destino)", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ArquivoSqlDestino) || !File.Exists(ArquivoSqlDestino))
+        {
+            MessageBox.Show("Selecione um arquivo .sql existente.", "Restauração (destino)", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!string.Equals(Path.GetExtension(ArquivoSqlDestino), ".sql", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show("Apenas arquivos com extensão .sql são permitidos.", "Restauração (destino)", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        ProcessandoRestauracao = true;
+        PassoPassoRestauracao = "";
+        var inicio = DateTime.Now;
+        AppendPassoRestauracao($"Início: {FormatarDataHoraLocal(inicio)}");
+        var progress = new Progress<string>(AppendPassoRestauracao);
+        try
+        {
+            var launcherDir = LauncherLayout.GetLauncherDirectory();
+            AppendPassoRestauracao($"Pasta do launcher: {launcherDir}");
+            await _backupRestore.RestaurarDestinoAsync(
+                launcherDir,
+                TipoBancoDestino!,
+                host,
+                port,
+                BancoDestino.Trim(),
+                UsuarioDestino.Trim(),
+                SenhaDestino,
+                ArquivoSqlDestino,
+                progress,
+                CancellationToken.None);
+
+            MessageBox.Show("Restauração do banco concluída.", "Restauração", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Restauração destino");
+            AppendPassoRestauracao("Erro: " + ex.Message);
+            MessageBox.Show(ex.Message, "Restauração (destino)", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            AppendPassoRestauracao($"Término: {FormatarDataHoraLocal(DateTime.Now)}");
+            ProcessandoRestauracao = false;
+        }
+    }
+
+    private bool TryValidarEndpointOrigem(out string host, out int port, out string erro)
+    {
+        host = ServidorOrigem.Trim();
+        port = 3306;
+        erro = "";
+        if (string.IsNullOrWhiteSpace(TipoBancoOrigem))
+        {
+            erro = "Selecione o tipo de banco (MySQL ou MariaDB) na origem.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            erro = "Informe o servidor (origem).";
+            return false;
+        }
+
+        if (!int.TryParse(PortaOrigemTexto?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out port) || port is < 1 or > 65535)
+        {
+            erro = "Informe uma porta válida (origem).";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(BancoOrigem))
+        {
+            erro = "Informe o nome do banco (origem).";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(UsuarioOrigem))
+        {
+            erro = "Informe o usuário (origem).";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryValidarEndpointDestino(out string host, out int port, out string erro)
+    {
+        host = ServidorDestino.Trim();
+        port = 3306;
+        erro = "";
+        if (string.IsNullOrWhiteSpace(TipoBancoDestino))
+        {
+            erro = "Selecione o tipo de banco (MySQL ou MariaDB) no destino.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            erro = "Informe o servidor (destino).";
+            return false;
+        }
+
+        if (!int.TryParse(PortaDestinoTexto?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out port) || port is < 1 or > 65535)
+        {
+            erro = "Informe uma porta válida (destino).";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(BancoDestino))
+        {
+            erro = "Informe o nome do banco (destino).";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(UsuarioDestino))
+        {
+            erro = "Informe o usuário (destino).";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void AppendPassoBackup(string linha) =>
+        PassoPassoBackupOrigem += linha + Environment.NewLine;
+
+    private void AppendPassoRestauracao(string linha) =>
+        PassoPassoRestauracao += linha + Environment.NewLine;
 
     [RelayCommand]
     private async Task InicializarEsquemaAsync()
